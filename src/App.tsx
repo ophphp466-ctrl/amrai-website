@@ -3,9 +3,13 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { initLenis, getLenis } from "./lib/scroll";
 import useScrollReveal from "./hooks/useScrollReveal";
+import { useScrollVelocity } from "./hooks/useScrollVelocity";
 import Preloader from "./components/Preloader";
 import EnhancedCursor from "./components/EnhancedCursor";
 import ParticleField from "./components/ParticleField";
+import FloatingShapes from "./components/FloatingShapes";
+import RippleEffect from "./components/RippleEffect";
+import HorizontalShowcase from "./components/HorizontalShowcase";
 import Nav from "./components/Nav";
 import Hero from "./components/Hero";
 import { Marquee } from "./components/Bits";
@@ -35,6 +39,9 @@ export default function App() {
   /* Scroll reveal animations */
   useScrollReveal();
 
+  /* Scroll velocity tracking */
+  useScrollVelocity();
+
   /* Lenis + ScrollTrigger */
   useEffect(() => {
     const lenis = initLenis();
@@ -59,8 +66,11 @@ export default function App() {
 
   return (
     <div className="relative">
+      {/* Global effects */}
       <EnhancedCursor />
       <ParticleField />
+      <FloatingShapes />
+      <RippleEffect />
       <div className="grain-layer" aria-hidden="true" />
       {!ready && <Preloader onDone={() => setReady(true)} />}
 
@@ -70,6 +80,7 @@ export default function App() {
         <Hero ready={ready} />
         <Marquee items={MARQUEE_ITEMS} />
         <Services onOpenStory={setStory} />
+        <HorizontalShowcase />
         <Cases />
         <Tools />
         <Marquee items={["+500 مشروع ناجح", "98% رضا العملاء", "12+ سنة خبرة", "+350% نمو مبيعات", "رد خلال 24 ساعة"]} reverse />

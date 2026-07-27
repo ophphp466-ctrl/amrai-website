@@ -471,6 +471,123 @@ input[type="range"].cine-range::-webkit-slider-thumb:hover { transform: scale(1.
   opacity: 1;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   Cinematic Animations v3 — Ultra enhancements
+   Magnetic, showcase, ripple, and spring physics
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Magnetic element base ──────────────────────────────── */
+.magnetic-wrap {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* ── Showcase cards ─────────────────────────────────────── */
+.showcase-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.4s var(--ease-out);
+}
+.showcase-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 50%), rgba(95, 212, 255, 0.08), transparent 50%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.showcase-card:hover::before {
+  opacity: 1;
+}
+.showcase-card:hover {
+  transform: translateY(-4px);
+}
+
+/* ── Scroll velocity skew (applied via JS) ──────────────── */
+.velocity-skew {
+  will-change: transform;
+  transition: transform 0.15s ease-out;
+}
+
+/* ── Magnetic button enhancement ────────────────────────── */
+.btn-magnetic {
+  will-change: transform;
+  transition: transform 0.3s var(--ease-out);
+}
+
+/* ── Horizontal showcase scrollbar hide ─────────────────── */
+.horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+.horizontal-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Enhanced spring animations ─────────────────────────── */
+@keyframes spring-in {
+  0% { transform: scale(0.8) translateY(40px); opacity: 0; }
+  60% { transform: scale(1.02) translateY(-4px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes float-rotate {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-8px) rotate(2deg); }
+  75% { transform: translateY(8px) rotate(-2deg); }
+}
+
+.spring-in {
+  animation: spring-in 0.8s var(--ease-out) forwards;
+}
+
+/* ── Chromatic text effect ──────────────────────────────── */
+.chromatic-text {
+  position: relative;
+}
+.chromatic-text::before,
+.chromatic-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+.chromatic-text::before {
+  color: #ff0000;
+  clip-path: inset(0 0 50% 0);
+  transform: translateX(-2px);
+  opacity: 0.5;
+}
+.chromatic-text::after {
+  color: #00ffff;
+  clip-path: inset(50% 0 0 0);
+  transform: translateX(2px);
+  opacity: 0.5;
+}
+
+/* ── Noise texture overlay ──────────────────────────────── */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.reveal-heading {
+  opacity: 1;
+}
+.reveal-card {
+  opacity: 1;
+}
+.reveal-text {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .grain-layer { animation: none; }
