@@ -1,21 +1,45 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, lazy, Suspense } from "react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SERVICES, type Service } from "../lib/data";
 import { SectionHead } from "./Bits";
 
-/* شبكة الخدمات — كل بطاقة تفتح قصة تفاعلية حية */
+const NeuralNetwork3D = lazy(() => import("./NeuralNetwork3D"));
+
+/* ═══════════════════════════════════════════════════════════
+   AMR AI — Services with 3D Neural Network
+   Cinematic scroll experience with interactive 3D nodes
+   ═══════════════════════════════════════════════════════════ */
+
 export default function Services({ onOpenStory }: { onOpenStory: (s: Service) => void }) {
   const root = useRef<HTMLElement>(null);
+  const networkRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo(".svc-card", { opacity: 0, y: 60, rotateX: -6 }, {
-        opacity: 1, y: 0, rotateX: 0, duration: 1, stagger: 0.1, ease: "power3.out",
-        scrollTrigger: { trigger: root.current, start: "top 70%", toggleActions: "play none none reverse" },
+      // 3D Network reveal
+      gsap.fromTo(networkRef.current, 
+        { opacity: 0, scale: 0.92 }, 
+        {
+          opacity: 1, scale: 1, duration: 1.4, ease: "power3.out",
+          scrollTrigger: { trigger: networkRef.current, start: "top 80%", toggleActions: "play none none reverse" },
+        }
+      );
+
+      // Cards stagger reveal
+      gsap.fromTo(".svc-card", { opacity: 0, y: 60, rotateX: -8 }, {
+        opacity: 1, y: 0, rotateX: 0, duration: 1, stagger: 0.08, ease: "power3.out",
+        scrollTrigger: { trigger: ".svc-grid", start: "top 75%", toggleActions: "play none none reverse" },
+      });
+
+      // Section head
+      gsap.fromTo(".svc-head", { opacity: 0, y: 40 }, {
+        opacity: 1, y: 0, duration: 1, ease: "power3.out",
+        scrollTrigger: { trigger: ".svc-head", start: "top 85%", toggleActions: "play none none reverse" },
       });
     }, root);
 
-    // إضاءة تتبع المؤشر + ميلان ثلاثي الأبعاد
+    // 3D tilt on cards
     const cards = root.current!.querySelectorAll<HTMLElement>(".svc-card");
     const handlers: [HTMLElement, (e: PointerEvent) => void, () => void][] = [];
     cards.forEach((card) => {
@@ -24,15 +48,16 @@ export default function Services({ onOpenStory }: { onOpenStory: (s: Service) =>
         const px = e.clientX - r.left, py = e.clientY - r.top;
         card.style.setProperty("--mx", `${px}px`);
         card.style.setProperty("--my", `${py}px`);
-        const rx = ((py / r.height) - 0.5) * -7;
-        const ry = ((px / r.width) - 0.5) * 7;
-        gsap.to(card, { rotateX: rx, rotateY: ry, transformPerspective: 1100, duration: 0.5, ease: "power2.out" });
+        const rx = ((py / r.height) - 0.5) * -8;
+        const ry = ((px / r.width) - 0.5) * 8;
+        gsap.to(card, { rotateX: rx, rotateY: ry, transformPerspective: 1200, duration: 0.4, ease: "power2.out" });
       };
-      const leave = () => gsap.to(card, { rotateX: 0, rotateY: 0, duration: 0.8, ease: "elastic.out(1,0.4)" });
+      const leave = () => gsap.to(card, { rotateX: 0, rotateY: 0, duration: 0.7, ease: "elastic.out(1,0.5)" });
       card.addEventListener("pointermove", move);
       card.addEventListener("pointerleave", leave);
       handlers.push([card, move, leave]);
     });
+
     return () => {
       ctx.revert();
       handlers.forEach(([c, m, l]) => { c.removeEventListener("pointermove", m); c.removeEventListener("pointerleave", l); });
@@ -40,15 +65,36 @@ export default function Services({ onOpenStory }: { onOpenStory: (s: Service) =>
   }, []);
 
   return (
-    <section ref={root} id="services" className="section">
-      <div className="shell">
-        <SectionHead
-          kicker="SERVICES · ماذا نقدم"
-          title="حلول متكاملة لكل تحدٍ تقني"
-          sub="ست قدرات أساسية — ولكل واحدة قصة تفاعلية حية: اضغط أي خدمة وشاهد الكود يُكتب أمامك ثم يتحول إلى منتج حقيقي يعمل."
-        />
+    <section ref={root} id="services" className="section relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(ellipse 60% 50% at 50% 30%, rgba(41,171,226,0.04), transparent)" }} />
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+      <div className="shell relative">
+        <div className="svc-head">
+          <SectionHead
+            kicker="SERVICES · ماذا نقدم"
+            title="شبكة قدراتنا التقنية"
+            sub="ست قدرات متصلة — كل خدمة عقدة في شبكتنا العصبية، تتفاعل مع بقية الخدمات لتُنتج حلولًا متكاملة."
+          />
+        </div>
+
+        {/* 3D Neural Network */}
+        <div ref={networkRef} className="mb-16">
+          <Suspense fallback={
+            <div className="w-full h-[55vh] md:h-[75vh] rounded-3xl glass flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-[#29abe2] border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-[#5b6579]">جاري تحميل التجربة الثلاثية الأبعاد…</span>
+              </div>
+            </div>
+          }>
+            <NeuralNetwork3D services={SERVICES} />
+          </Suspense>
+        </div>
+
+        {/* Service Cards Grid */}
+        <div className="svc-grid grid md:grid-cols-2 xl:grid-cols-3 gap-5">
           {SERVICES.map((s) => (
             <article
               key={s.id}
