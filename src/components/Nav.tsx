@@ -44,11 +44,12 @@ export default function Nav() {
       <header className={`fixed top-0 inset-x-0 z-[200] transition-all duration-500 ${scrolled ? "py-3" : "py-6"}`}>
         <div className="shell">
           <div className={`flex items-center justify-between rounded-2xl px-5 py-3 transition-all duration-500 ${scrolled ? "glass shadow-[0_20px_60px_rgba(0,0,0,0.5)]" : ""}`}>
-            <button onClick={() => go("top")} className="flex items-center gap-3" aria-label="Amr AI">
-              <svg className="w-9 h-9" viewBox="0 0 100 100" fill="none" stroke="#5fd4ff" strokeWidth="4" strokeLinecap="round">
-                <path d="M50 8a14 14 0 0114 14 14 14 0 0110 24 14 14 0 01-4 26 14 14 0 01-20 10 14 14 0 01-20-10 14 14 0 01-4-26 14 14 0 0110-24A14 14 0 0150 8z" />
-                <path d="M38 40l-10 10 10 10M62 40l10 10-10 10M54 34l-8 32" />
-              </svg>
+            <button onClick={() => go("top")} className="flex items-center gap-3 group" aria-label="Amr AI">
+              <img 
+                src="/logo.jpg" 
+                alt="Amr AI Logo" 
+                className="w-10 h-10 rounded-xl object-cover border border-[#94b2ff22] transition-all duration-500 group-hover:shadow-[0_0_20px_rgba(41,171,226,0.4)] group-hover:border-[#29abe255]"
+              />
               <span className="latin font-bold text-lg tracking-[0.2em]">AMR&nbsp;AI</span>
             </button>
 

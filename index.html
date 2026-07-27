@@ -11,17 +11,17 @@
     
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://amr-ai.com" />
+    <meta property="og:url" content="https://ophphp466-ctrl.github.io/amrai-website" />
     <meta property="og:title" content="Amr AI — نحوّل الأفكار إلى واقعٍ رقميٍ ذكي" />
     <meta property="og:description" content="تجارب رقمية ثورية تدمج الذكاء الاصطناعي مع تصميم سينمائي عالمي. أكثر من 500 مشروع ناجح و98% رضا عملاء." />
-    <meta property="og:image" content="https://amr-ai.com/og-image.jpg" />
+    <meta property="og:image" content="https://ophphp466-ctrl.github.io/amrai-website/logo.jpg" />
     <meta property="og:locale" content="ar_EG" />
     
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Amr AI — نحوّل الأفكار إلى واقعٍ رقميٍ ذكي" />
     <meta name="twitter:description" content="تجارب رقمية ثورية تدمج الذكاء الاصطناعي مع تصميم سينمائي عالمي." />
-    <meta name="twitter:image" content="https://amr-ai.com/og-image.jpg" />
+    <meta name="twitter:image" content="https://ophphp466-ctrl.github.io/amrai-website/logo.jpg" />
     
     <!-- Preconnect & Preload -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,7 +32,8 @@
     <title>Amr AI — نحوّل الأفكار إلى واقعٍ رقميٍ ذكي | ذكاء اصطناعي · تطوير ويب · تطبيقات موبايل</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='none' stroke='%2329abe2' stroke-width='7'/%3E%3Ccircle cx='50' cy='50' r='12' fill='%2329abe2'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+    <link rel="apple-touch-icon" href="/logo.jpg" />
     
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -41,8 +42,8 @@
       "@type": "Organization",
       "name": "Amr AI",
       "alternateName": "عمر AI",
-      "url": "https://amr-ai.com",
-      "logo": "https://amr-ai.com/logo.png",
+      "url": "https://ophphp466-ctrl.github.io/amrai-website",
+      "logo": "https://ophphp466-ctrl.github.io/amrai-website/logo.jpg",
       "description": "شركة رائدة في الذكاء الاصطناعي وتطوير الويب وتطبيقات الموبايل والأتمتة الذكية والحلول السحابية.",
       "slogan": "نحوّل الأفكار إلى واقعٍ رقميٍ ذكي",
       "foundingDate": "2014",
@@ -74,10 +75,10 @@
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "Amr AI",
-      "url": "https://amr-ai.com",
+      "url": "https://ophphp466-ctrl.github.io/amrai-website",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://amr-ai.com/search?q={search_term_string}",
+        "target": "https://ophphp466-ctrl.github.io/amrai-website/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
@@ -101,18 +102,15 @@
       #root { min-height: 100vh; }
       /* Loading state */
       .initial-loader { position: fixed; inset: 0; z-index: 9999; background: #030309; display: flex; align-items: center; justify-content: center; }
-      .initial-loader svg { width: 64px; height: 64px; }
-      .initial-loader circle { stroke: #29abe2; fill: none; stroke-width: 3; stroke-linecap: round; animation: initial-spin 1s linear infinite; }
-      @keyframes initial-spin { to { transform: rotate(360deg); } }
+      .initial-loader img { width: 80px; height: 80px; border-radius: 20px; object-fit: cover; animation: logo-pulse 1.5s ease-in-out infinite; }
+      @keyframes logo-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
     </style>
   </head>
   <body>
     <div id="root">
-      <!-- Initial loader for fastest paint -->
+      <!-- Initial loader with logo -->
       <div class="initial-loader" aria-hidden="true">
-        <svg viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="200" />
-        </svg>
+        <img src="/logo.jpg" alt="Amr AI" />
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
