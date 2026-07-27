@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════
-   AMR AI — Enhanced Hero GLSL Scene v2
-   Immersive aurora + neural network + chromatic aberration
-   + digital rain particles + volumetric god rays
+   AMR AI — Neural Genesis Shader
+   A living neural network: brain-like synaptic connections
+   that pulse and glow. The mouse is the "attention" vector.
    ═══════════════════════════════════════════════════════════ */
 
 const VERT = `#version 300 es
@@ -18,7 +18,7 @@ uniform vec2  uMouse;
 uniform float uMouseAct;
 out vec4 fragColor;
 
-/* ── noise utilities ────────────────────────────────────── */
+/* ── hash / noise ───────────────────────────────────────── */
 vec2 hash22(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
   return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
@@ -33,145 +33,129 @@ float vnoise(vec2 p) {
              mix(hash21(i + vec2(0, 1)), hash21(i + vec2(1, 1)), u.x), u.y);
 }
 float fbm(vec2 p) {
-  float v = 0.0, a = 0.55;
+  float v = 0.0, a = 0.5;
   mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 5; i++) {
     v += a * vnoise(p);
     p = rot * p * 2.03 + vec2(3.7, 1.3);
-    a *= 0.52;
+    a *= 0.5;
   }
   return v;
 }
 
-/* ── neural network ─────────────────────────────────────── */
-vec2 nodePos(vec2 cell, float t) {
-  vec2 h = hash22(cell);
-  return cell + 0.5 + 0.38 * vec2(sin(t * 0.6 + h.x * 6.28), cos(t * 0.45 + h.y * 6.28));
-}
-vec3 network(vec2 uv, float t) {
-  vec2 g = uv * 9.0;
+/* ── synaptic network (brain-like connections) ──────────── */
+vec3 synapseNetwork(vec2 uv, float t) {
+  // Organic grid — not perfect squares, slightly warped
+  float scale = 6.0;
+  vec2 g = uv * scale;
+  vec2 warp = vec2(fbm(g * 0.3 + t * 0.1), fbm(g * 0.3 + vec2(5.2, 1.3) - t * 0.08));
+  g += warp * 0.4;
+  
   vec2 id = floor(g);
-  float dots = 0.0, lines = 0.0;
-  vec2 p0 = nodePos(id, t);
-  for (int y = -1; y <= 1; y++)
-  for (int x = -1; x <= 1; x++) {
-    vec2 c = id + vec2(x, y);
-    vec2 p = nodePos(c, t);
-    float d = length(g - p);
-    dots += 0.0018 / (d * d + 0.004);
-    if (x == 0 || y == 0) {
-      vec2 a = p0, b = p;
-      vec2 pa = g - a, ba = b - a;
-      float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
-      float ld = length(pa - ba * h);
-      float w = smoothstep(1.9, 0.4, length(b - a));
-      lines += smoothstep(0.035, 0.0, ld) * w * 0.55;
+  vec2 f = fract(g) - 0.5;
+  
+  float dots = 0.0;
+  float lines = 0.0;
+  float signal = 0.0;
+  
+  // Find closest nodes and connections
+  float minDist = 999.0;
+  vec2 closest = vec2(0.0);
+  
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 c = id + vec2(float(x), float(y));
+      vec2 h = hash22(c);
+      
+      // Node position with organic movement
+      vec2 nodePos = h * 0.35 + 0.05 * vec2(sin(t * 0.4 + h.x * 6.28), cos(t * 0.35 + h.y * 6.28));
+      vec2 delta = f - nodePos;
+      float d = length(delta);
+      
+      if (d < minDist) {
+        minDist = d;
+        closest = c;
+      }
+      
+      // Node glow
+      float nodeSize = 0.04 + 0.02 * sin(t * 0.6 + h.x * 6.28);
+      dots += smoothstep(nodeSize, 0.0, d) * (0.5 + 0.5 * sin(t * 0.8 + h.y * 6.28));
+      
+      // Connections to neighbors (synapses)
+      if (x == 0 && y == 0) continue;
+      
+      vec2 nc = c + vec2(float(x), float(y));
+      vec2 nh = hash22(nc);
+      vec2 nPos = nh * 0.35 + 0.05 * vec2(sin(t * 0.4 + nh.x * 6.28), cos(t * 0.35 + nh.y * 6.28));
+      
+      // Only connect some pairs (threshold based on hash)
+      float connectThresh = hash21(c * 17.31 + nc * 23.77);
+      if (connectThresh > 0.35) continue;
+      
+      // Line segment distance
+      vec2 a = nodePos;
+      vec2 b = nPos;
+      vec2 pa = f - a;
+      vec2 ba = b - a;
+      float h2 = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-4), 0.0, 1.0);
+      float ld = length(pa - ba * h2);
+      
+      // Signal traveling along the line
+      float signalPos = fract(t * 0.15 + hash21(c * 7.0) * 2.0);
+      float signalDist = abs(h2 - signalPos);
+      float sigGlow = exp(-signalDist * signalDist * 80.0) * 0.5;
+      
+      float lw = 0.008 + sigGlow * 0.01;
+      lines += smoothstep(lw, 0.0, ld) * (0.15 + sigGlow);
+      signal += sigGlow * smoothstep(lw * 2.0, 0.0, ld);
     }
   }
-  return vec3(0.16, 0.65, 0.95) * dots * 0.5 + vec3(0.10, 0.45, 0.85) * lines * 0.4;
+  
+  // Cyan for nodes, brighter cyan for signals
+  vec3 nodeCol = vec3(0.16, 0.65, 0.95) * dots * 0.8;
+  vec3 lineCol = vec3(0.12, 0.45, 0.75) * lines;
+  vec3 signalCol = vec3(0.4, 0.85, 1.0) * signal * 1.5;
+  
+  return nodeCol + lineCol + signalCol;
 }
 
-/* ── digital rain particles ─────────────────────────────── */
-float rain(vec2 uv, float t) {
-  float rain = 0.0;
-  for (int i = 0; i < 8; i++) {
-    float fi = float(i);
-    vec2 seed = vec2(fi * 37.0, fi * 17.0);
-    float x = hash21(seed) * 2.0 - 1.0;
-    float speed = 0.3 + hash21(seed + 1.0) * 0.5;
-    float y = fract(x * 0.7 + t * speed + fi * 0.1);
-    float len = 0.02 + hash21(seed + 2.0) * 0.04;
-    float bright = hash21(seed + 3.0);
-    vec2 drop = vec2(x, y * 2.0 - 1.0);
-    float d = length(uv - drop);
-    rain += bright * smoothstep(len, 0.0, abs(d)) * smoothstep(0.0, 0.1, y) * smoothstep(1.0, 0.9, y);
-  }
-  return rain;
-}
-
-/* ── god rays / volumetric light ────────────────────────── */
-float godRays(vec2 uv, float t) {
-  float rays = 0.0;
-  for (int i = 0; i < 5; i++) {
-    float fi = float(i);
-    float angle = fi * 2.4 + t * 0.05;
-    vec2 dir = vec2(cos(angle), sin(angle));
-    float d = dot(uv, dir);
-    rays += pow(max(d * 0.5 + 0.5, 0.0), 8.0) * 0.08;
-  }
-  return rays;
-}
-
-/* ── chromatic aberration helper ────────────────────────── */
-vec3 sampleScene(vec2 uv, float t) {
-  /* mouse warp */
-  vec2 m = uMouse;
-  float md = length(uv - m);
-  float mGlow = exp(-md * 2.6) * uMouseAct;
-  vec2 warp = (uv - m) * mGlow * 0.35;
-
-  /* aurora — domain-warped fbm */
-  vec2 p = uv * 1.15 + warp;
-  vec2 q = vec2(fbm(p + t * 0.7), fbm(p + vec2(5.2, 1.3) - t * 0.5));
-  vec2 r = vec2(fbm(p + 2.2 * q + vec2(1.7, 9.2) + t * 0.35),
-                fbm(p + 2.4 * q + vec2(8.3, 2.8) - t * 0.28));
-  float f = fbm(p + 2.6 * r);
-
-  /* palette — OLED navy → cyan → violet → gold */
-  vec3 base = vec3(0.012, 0.014, 0.035);
-  vec3 c1   = vec3(0.02, 0.10, 0.24);
-  vec3 c2   = vec3(0.05, 0.45, 0.75);
-  vec3 c3   = vec3(0.34, 0.28, 0.85);
-  vec3 c4   = vec3(0.95, 0.82, 0.40);
-  vec3 col = base;
-  col = mix(col, c1, smoothstep(0.15, 0.65, f));
-  col = mix(col, c2, smoothstep(0.45, 0.95, f) * 0.85);
-  col = mix(col, c3, smoothstep(0.6, 1.0, length(q)) * 0.35);
-  col = mix(col, c4, smoothstep(0.75, 1.0, f) * 0.15);
-  col += c2 * pow(max(f - 0.55, 0.0), 2.2) * 1.6;
-  col += vec3(0.35, 0.75, 1.0) * mGlow * 0.22;
-
-  /* neural layer */
-  float centerMask = smoothstep(0.35, 1.15, length(uv * vec2(0.75, 1.2)));
-  col += network(uv + warp * 0.5, uTime) * mix(0.5, 1.0, centerMask);
-
-  /* digital rain */
-  float r = rain(uv * 1.5, t * 0.5);
-  col += vec3(0.18, 0.65, 0.95) * r * 0.3;
-
-  /* god rays */
-  col += vec3(0.02, 0.08, 0.15) * godRays(uv, t);
-
-  /* scanlines + grain */
-  col *= 0.96 + 0.04 * sin(gl_FragCoord.y * 1.7);
-  col += (hash21(gl_FragCoord.xy + fract(uTime)) - 0.5) * 0.028;
-
-  /* vignette */
-  float vig = smoothstep(1.85, 0.45, length(uv * vec2(0.85, 1.1)));
-  col *= mix(0.55, 1.0, vig);
-
-  /* tone map */
-  col = col / (col + 0.55);
-  col = pow(col, vec3(0.9));
-
-  return col;
+/* ── deep space fog ─────────────────────────────────────── */
+float deepFog(vec2 uv, float t) {
+  float f = fbm(uv * 0.8 + t * 0.03);
+  f += fbm(uv * 1.5 - t * 0.02) * 0.5;
+  return f * 0.15;
 }
 
 void main() {
   vec2 uv = (gl_FragCoord.xy * 2.0 - uRes) / min(uRes.x, uRes.y);
-  float t = uTime * 0.12;
-
-  /* chromatic aberration at edges */
-  float aberration = length(uv) * 0.003;
-  vec3 col;
-  col.r = sampleScene(uv + vec2(aberration, 0.0), t).r;
-  col.g = sampleScene(uv, t).g;
-  col.b = sampleScene(uv - vec2(aberration, 0.0), t).b;
-
-  /* subtle pulse on mouse interaction */
-  float pulse = sin(uTime * 3.0) * 0.5 + 0.5;
-  col += vec3(0.02, 0.06, 0.1) * uMouseAct * pulse * 0.3;
-
+  float t = uTime * 0.1;
+  
+  // Mouse influence — attention vector
+  vec2 m = uMouse;
+  float md = length(uv - m);
+  float attention = exp(-md * 2.0) * uMouseAct;
+  
+  // Deep space background
+  vec3 bg = vec3(0.012, 0.014, 0.035);
+  bg += vec3(0.02, 0.06, 0.12) * deepFog(uv, t);
+  
+  // Neural network layer
+  vec3 neural = synapseNetwork(uv + (uv - m) * attention * 0.2, t);
+  
+  // Mouse glow
+  bg += vec3(0.1, 0.4, 0.7) * attention * 0.15;
+  
+  // Combine
+  vec3 col = bg + neural;
+  
+  // Vignette
+  float vig = smoothstep(1.6, 0.5, length(uv * vec2(0.8, 1.0)));
+  col *= mix(0.4, 1.0, vig);
+  
+  // Subtle tone map
+  col = col / (col + 0.6);
+  col = pow(col, vec3(0.92));
+  
   fragColor = vec4(col, 1.0);
 }
 `;
@@ -191,7 +175,7 @@ export class HeroShader {
   private uTime: WebGLUniformLocation | null = null;
   private uMouse: WebGLUniformLocation | null = null;
   private uMouseAct: WebGLUniformLocation | null = null;
-  private scale = Math.min(window.devicePixelRatio || 1, 1.6) * 0.85;
+  private scale = Math.min(window.devicePixelRatio || 1, 1.5) * 0.75;
   private frames = 0;
   private lastFpsCheck = performance.now();
 
@@ -277,8 +261,8 @@ export class HeroShader {
       const fps = (this.frames * 1000) / elapsed;
       this.frames = 0;
       this.lastFpsCheck = now;
-      if (fps < 27 && this.scale > 0.45) {
-        this.scale = Math.max(0.45, this.scale - 0.15);
+      if (fps < 30 && this.scale > 0.5) {
+        this.scale = Math.max(0.5, this.scale - 0.1);
         this.resize();
       }
     }
@@ -288,8 +272,8 @@ export class HeroShader {
     if (!this.running || !this.gl) return;
     const gl = this.gl;
     const t = (performance.now() - this.start) / 1000;
-    this.mouse.x += (this.mouse.tx - this.mouse.x) * 0.045;
-    this.mouse.y += (this.mouse.ty - this.mouse.y) * 0.045;
+    this.mouse.x += (this.mouse.tx - this.mouse.x) * 0.05;
+    this.mouse.y += (this.mouse.ty - this.mouse.y) * 0.05;
     this.mouse.act += (this.mouse.tact - this.mouse.act) * 0.03;
     this.mouse.tact *= 0.995;
 
