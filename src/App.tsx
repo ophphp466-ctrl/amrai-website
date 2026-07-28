@@ -22,7 +22,6 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [story, setStory] = useState<Service | null>(null);
   const [article, setArticle] = useState<Article | null>(null);
-  const lineRef = useRef<HTMLDivElement>(null);
 
   /* Lenis + ScrollTrigger */
   useEffect(() => {
@@ -36,7 +35,7 @@ export default function App() {
 
   /* ScrollTrigger refresh after preloader */
   useEffect(() => {
-    if (ready) setTimeout(() => ScrollTrigger.refresh(), 200);
+    if (ready) setTimeout(() => ScrollTrigger.refresh(), 300);
   }, [ready]);
 
   /* Stop scroll during preloader */
@@ -46,21 +45,25 @@ export default function App() {
     else { lenis?.start(); document.body.style.overflow = ""; }
   }, [ready]);
 
-  /* The Line — continuous scroll animation */
+  /* Global scroll-driven cinematic effects */
   useEffect(() => {
-    if (!ready || !lineRef.current) return;
-    
+    if (!ready) return;
+
     const ctx = gsap.context(() => {
-      // The line glows brighter as you scroll
-      gsap.to(lineRef.current, {
-        scrollTrigger: {
-          trigger: "body",
-          start: "top top",
-          end: "bottom bottom",
-          scrub: true,
-        },
-        opacity: 0.6,
-        ease: "none",
+      // Each section reveals cinematically
+      gsap.utils.toArray<HTMLElement>(".cine-section").forEach((section, i) => {
+        gsap.fromTo(section,
+          { opacity: 0.2, y: 60 },
+          {
+            opacity: 1, y: 0, duration: 1.2, ease: "power3.out",
+            scrollTrigger: {
+              trigger: section,
+              start: "top 85%",
+              end: "top 50%",
+              scrub: 1,
+            }
+          }
+        );
       });
     });
 
@@ -68,18 +71,7 @@ export default function App() {
   }, [ready]);
 
   return (
-    <div className="relative">
-      {/* The Line — one continuous thread through the entire page */}
-      <div 
-        ref={lineRef}
-        className="fixed left-1/2 top-0 bottom-0 w-px -translate-x-1/2 z-[5] pointer-events-none"
-        style={{ 
-          background: "linear-gradient(180deg, transparent 0%, rgba(41,171,226,0.3) 10%, rgba(41,171,226,0.2) 50%, rgba(41,171,226,0.3) 90%, transparent 100%)",
-          boxShadow: "0 0 30px rgba(41,171,226,0.15), 0 0 80px rgba(41,171,226,0.05)",
-          opacity: 0.3,
-        }}
-      />
-
+    <div className="relative bg-[#030309]">
       {/* Subtle film grain */}
       <div className="grain-layer" aria-hidden="true" />
       
@@ -89,12 +81,30 @@ export default function App() {
 
       <main>
         <Hero ready={ready} />
-        <Services onOpenStory={setStory} />
-        <Cases />
-        <Tools />
-        <Blog onOpen={setArticle} />
-        <Pricing />
-        <Contact />
+        
+        <div className="cine-section">
+          <Services onOpenStory={setStory} />
+        </div>
+        
+        <div className="cine-section">
+          <Cases />
+        </div>
+        
+        <div className="cine-section">
+          <Tools />
+        </div>
+        
+        <div className="cine-section">
+          <Blog onOpen={setArticle} />
+        </div>
+        
+        <div className="cine-section">
+          <Pricing />
+        </div>
+        
+        <div className="cine-section">
+          <Contact />
+        </div>
       </main>
 
       <Footer />
