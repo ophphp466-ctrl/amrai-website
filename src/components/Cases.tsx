@@ -1,134 +1,223 @@
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { CASES } from "../lib/data";
-import { SectionHead } from "./Bits";
+import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { CASES } from '../lib/data';
 
-/* سلايدر قبل/بعد — تفاعلي حقيقي بالسحب */
-function BeforeAfter() {
-  const wrap = useRef<HTMLDivElement>(null);
+gsap.registerPlugin(ScrollTrigger);
 
-  useEffect(() => {
-    const el = wrap.current!;
-    let dragging = false;
-    const setPos = (clientX: number) => {
-      const r = el.getBoundingClientRect();
-      const p = Math.max(4, Math.min(96, ((clientX - r.left) / r.width) * 100));
-      el.style.setProperty("--ba", `${p}%`);
-    };
-    const down = (e: PointerEvent) => { dragging = true; el.setPointerCapture(e.pointerId); setPos(e.clientX); };
-    const move = (e: PointerEvent) => dragging && setPos(e.clientX);
-    const up = () => { dragging = false; };
-    el.addEventListener("pointerdown", down);
-    el.addEventListener("pointermove", move);
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", up);
-    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); };
-  }, []);
+/* ── Before/After Reveal Slider ─────────────────────────── */
+function BeforeAfterSlider({ accent }: { accent: string }) {
+  const [sliderPos, setSliderPos] = useState(50);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const handleMove = (clientX: number) => {
+    if (!wrapRef.current) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    setSliderPos(Math.max(0, Math.min(100, x)));
+  };
 
   return (
-    <div ref={wrap} className="ba-wrap aspect-[16/8] cursor-ew-resize" data-cursor-label="اسحب">
-      {/* قبل — تصميم قديم */}
-      <div className="absolute inset-0 bg-[#c8c8c8] p-[4%]" dir="ltr">
-        <div className="h-full bg-[#e8e8e8] border-4 border-[#999] p-4 font-mono text-[#333]">
-          <div className="bg-[#000080] text-white px-3 py-2 text-sm font-bold flex justify-between">
-            <span>My Store 2009</span><span>Home | Products | Guestbook</span>
-          </div>
-          <div className="mt-4 flex gap-4">
-            <div className="w-1/4 bg-[#ddd] border-2 border-[#aaa] p-2 text-[10px] leading-4">
-              ☑ Categories<br />□ Sale!<br />□ Links<br />□ Counter: 01438
+    <div
+      ref={wrapRef}
+      className="relative w-full aspect-video rounded-2xl overflow-hidden cursor-ew-resize"
+      style={{ touchAction: 'none' }}
+      onMouseMove={(e) => isDragging.current && handleMove(e.clientX)}
+      onMouseUp={() => (isDragging.current = false)}
+      onMouseLeave={() => (isDragging.current = false)}
+      onMouseDown={(e) => { isDragging.current = true; handleMove(e.clientX); }}
+      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+      onTouchStart={(e) => handleMove(e.touches[0].clientX)}
+    >
+      {/* "After" (improved) side */}
+      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}15, #0a0a16)` }}>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: `${accent}20`, border: `1px solid ${accent}40` }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
             </div>
-            <div className="flex-1">
-              <div className="text-lg font-bold underline">Welcome To Our Website!!</div>
-              <p className="text-[11px] mt-2 leading-5">Best products online!!! We sell many items. Click here to buy. Page best viewed in Internet Explorer 6.0 at 800x600.</p>
-              <div className="mt-3 flex gap-2">
-                {[1, 2, 3].map((i) => <div key={i} className="w-16 h-12 bg-[#bbb] border-2 border-[#888] flex items-center justify-center text-[9px]">IMG</div>)}
-              </div>
-              <button className="mt-3 px-3 py-1 bg-[#ccc] border-2 border-[#666] text-[11px]" style={{ boxShadow: "2px 2px 0 #555" }}>BUY NOW</button>
-            </div>
-          </div>
-          <div className="mt-4 text-center text-[9px] text-[#777]">© 2009 — visitor counter — sign our guestbook</div>
-        </div>
-        <span className="absolute top-4 left-4 bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-full" dir="rtl">قبل 😴</span>
-      </div>
-
-      {/* بعد — تصميم Amr AI */}
-      <div className="ba-after bg-[#05050d] p-[4%]" dir="ltr">
-        <div className="h-full rounded-2xl overflow-hidden relative flex flex-col items-center justify-center text-center"
-          style={{ background: "radial-gradient(600px 300px at 50% 0%, #123, #05050d)" }}>
-          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(rgba(95,212,255,0.25) 1px, transparent 1px)", backgroundSize: "26px 26px" }} />
-          <div className="relative">
-            <div className="latin text-[10px] tracking-[0.5em] text-[#5fd4ff] mb-3">AMR AI · CINEMATIC BUILD</div>
-            <div className="text-3xl md:text-5xl font-black text-white leading-tight" dir="rtl">تجربة تبيع قبل أن تتحدث</div>
-            <div className="mt-4 flex justify-center gap-3">
-              <span className="px-5 py-2 rounded-full bg-gradient-to-l from-[#29abe2] to-[#5fd4ff] text-[#02121e] text-sm font-black">اطلب الآن ⚡</span>
-              <span className="px-5 py-2 rounded-full border border-[#5fd4ff44] text-white text-sm font-bold">شاهد المزيد</span>
-            </div>
-            <div className="mt-5 flex justify-center gap-6 text-[11px] text-[#9aa5bc]" dir="rtl">
-              <span>⚡ 0.8s تحميل</span><span>🎯 100/100</span><span>📱 متجاوب كليًا</span>
-            </div>
+            <span className="text-lg font-bold" style={{ color: accent }}>بعد التحسين</span>
           </div>
         </div>
-        <span className="absolute top-4 right-4 bg-[#29abe2] text-[#02121e] text-xs font-black px-3 py-1.5 rounded-full" dir="rtl">بعد 🚀</span>
       </div>
 
-      <div className="ba-handle"><div className="ba-knob">⇄</div></div>
+      {/* "Before" side with clip */}
+      <div
+        className="absolute inset-0"
+        style={{
+          clipPath: `inset(0 ${100 - sliderPos}% 0 0)`,
+          background: 'linear-gradient(135deg, #1a1a2e, #0a0a16)',
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.3)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff6464" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </div>
+            <span className="text-lg font-bold" style={{ color: '#ff6464' }}>قبل التحسين</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Slider handle */}
+      <div
+        className="absolute top-0 bottom-0 w-[2px]"
+        style={{
+          left: `${sliderPos}%`,
+          background: accent,
+          boxShadow: `0 0 20px ${accent}80`,
+          transform: 'translateX(-50%)',
+        }}
+      >
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center"
+          style={{
+            background: accent,
+            boxShadow: `0 0 20px ${accent}80`,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#02121e" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
     </div>
   );
 }
 
-/* قصص النجاح */
 export default function Cases() {
-  const root = useRef<HTMLElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo(".ba-block", { opacity: 0, y: 50, scale: 0.97 }, {
-        opacity: 1, y: 0, scale: 1, duration: 1.1, ease: "power3.out",
-        scrollTrigger: { trigger: ".ba-block", start: "top 78%", toggleActions: "play none none reverse" },
+      // Title reveal
+      gsap.fromTo('.cases-header',
+        { opacity: 0, y: 60 },
+        {
+          opacity: 1, y: 0, duration: 1, ease: 'power3.out',
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: 'top 75%',
+            toggleActions: 'play none none none',
+          }
+        }
+      );
+
+      // Case cards stagger
+      gsap.utils.toArray<HTMLElement>('.case-card').forEach((card, i) => {
+        gsap.fromTo(card,
+          { opacity: 0, x: i % 2 === 0 ? -80 : 80, scale: 0.95 },
+          {
+            opacity: 1, x: 0, scale: 1, duration: 1.2,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 80%',
+              toggleActions: 'play none none none',
+            }
+          }
+        );
       });
-      gsap.utils.toArray<HTMLElement>(".case-row").forEach((row, i) => {
-        gsap.fromTo(row, { opacity: 0, x: i % 2 ? -70 : 70 }, {
-          opacity: 1, x: 0, duration: 1.1, ease: "power3.out",
-          scrollTrigger: { trigger: row, start: "top 80%", toggleActions: "play none none reverse" },
-        });
-      });
-    }, root);
+    }, sectionRef);
+
     return () => ctx.revert();
   }, []);
 
   return (
-    <section ref={root} id="work" className="section bg-[#04040b]">
-      <div className="shell">
-        <SectionHead
-          kicker="SUCCESS STORIES · قصص نجاح"
-          title="مشاريع صنعت الفارق"
-          sub="أربع قصص من أكثر من 500 مشروع ناجح — واسحب المقبض لترى الفرق الحقيقي الذي نصنعه بين «قبل» و«بعد»."
-        />
+    <section
+      id="work"
+      ref={sectionRef}
+      className="relative py-32"
+      style={{ background: '#030309' }}
+    >
+      {/* Background gradient */}
+      <div
+        className="absolute top-0 left-0 w-full h-[500px] pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(123,108,255,0.05) 0%, transparent 60%)',
+        }}
+      />
 
-        <div className="ba-block mb-20">
-          <BeforeAfter />
+      <div className="shell relative z-10">
+        {/* Header */}
+        <div className="cases-header text-center mb-20">
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="w-16 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, #7b6cff)' }} />
+            <span className="text-sm font-medium tracking-[0.3em] uppercase" style={{ color: '#7b6cff', fontFamily: 'Space Grotesk' }}>
+              Case Studies
+            </span>
+            <div className="w-16 h-[1px]" style={{ background: 'linear-gradient(90deg, #7b6cff, transparent)' }} />
+          </div>
+          <h2
+            className="font-black leading-tight"
+            style={{
+              fontSize: 'clamp(2rem, 3vw + 1rem, 4.5rem)',
+              color: '#eef3fb',
+            }}
+          >
+            قصص نجاح حقيقية
+          </h2>
+          <p className="mt-6 max-w-2xl mx-auto" style={{ color: '#9aa5bc', fontSize: '1.1rem', lineHeight: 1.8 }}>
+            نتائج ملموسة حققناها لعملائنا في مختلف المجالات
+          </p>
         </div>
 
-        <div className="space-y-6">
+        {/* Cases */}
+        <div className="space-y-20">
           {CASES.map((c, i) => (
-            <article key={c.id} className={`case-row glass rounded-3xl p-8 md:p-10 grid md:grid-cols-[1.1fr,1fr] gap-8 items-center hover-lift ${i % 2 ? "md:[direction:ltr]" : ""}`}>
-              <div className="[direction:rtl]">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="chip" style={{ color: c.accent, borderColor: `${c.accent}44` }}>{c.field}</span>
-                  <span className="num-latin text-3xl font-bold text-transparent" style={{ WebkitTextStroke: "1px rgba(149,178,255,0.3)" }}>0{i + 1}</span>
+            <div
+              key={c.id}
+              className={`case-card grid grid-cols-1 lg:grid-cols-2 gap-10 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
+            >
+              {/* Content */}
+              <div className={i % 2 === 1 ? 'lg:order-2' : ''}>
+                <span
+                  className="inline-block px-4 py-1 rounded-full text-xs font-bold mb-4"
+                  style={{
+                    background: `${c.accent}15`,
+                    color: c.accent,
+                    border: `1px solid ${c.accent}30`,
+                  }}
+                >
+                  {c.field}
+                </span>
+                <h3
+                  className="font-black mb-4"
+                  style={{ fontSize: 'clamp(1.5rem, 2vw + 0.5rem, 2.5rem)', color: '#eef3fb' }}
+                >
+                  {c.title}
+                </h3>
+                <p className="mb-8 leading-relaxed" style={{ color: '#9aa5bc', fontSize: '1.05rem' }}>
+                  {c.desc}
+                </p>
+
+                {/* Metrics */}
+                <div className="grid grid-cols-3 gap-4">
+                  {c.metrics.map((m, j) => (
+                    <div
+                      key={j}
+                      className="p-4 rounded-2xl text-center"
+                      style={{
+                        background: 'rgba(13,17,34,0.6)',
+                        border: '1px solid rgba(148,178,255,0.08)',
+                      }}
+                    >
+                      <div
+                        className="text-2xl font-black mb-1"
+                        style={{ color: c.accent, fontFamily: 'Space Grotesk' }}
+                      >
+                        {m.value}
+                      </div>
+                      <div className="text-xs" style={{ color: '#5b6579' }}>{m.label}</div>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-2xl md:text-3xl font-black text-white">{c.title}</h3>
-                <p className="lead !text-[15px] mt-3">{c.desc}</p>
               </div>
-              <div className="grid grid-cols-3 gap-3 [direction:rtl]">
-                {c.metrics.map((m) => (
-                  <div key={m.label} className="rounded-2xl border border-[#94b2ff14] bg-[#080a16] p-4 text-center">
-                    <div className="text-xl md:text-2xl font-black" style={{ color: c.accent }}>{m.value}</div>
-                    <div className="text-[11px] text-[#9aa5bc] font-bold mt-1.5 leading-5">{m.label}</div>
-                  </div>
-                ))}
+
+              {/* Visual */}
+              <div className={i % 2 === 1 ? 'lg:order-1' : ''}>
+                <BeforeAfterSlider accent={c.accent} />
               </div>
-            </article>
+            </div>
           ))}
         </div>
       </div>
