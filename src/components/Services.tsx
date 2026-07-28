@@ -5,56 +5,108 @@ import { SERVICES } from '../lib/data';
 
 gsap.registerPlugin(ScrollTrigger);
 
+/* ═══════════════════════════════════════════════════════════
+   SERVICES — Film Reel Section 2
+   3D Tilt Cards + Magnetic Buttons + Parallax
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 3D Tilt Card ───────────────────────────────────────── */
+function TiltCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMove = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const rotateX = ((y - cy) / cy) * -12;
+    const rotateY = ((x - cx) / cx) * 12;
+
+    gsap.to(ref.current, {
+      rotateX,
+      rotateY,
+      duration: 0.3,
+      ease: 'power2.out',
+      transformPerspective: 1000,
+    });
+  };
+
+  const handleLeave = () => {
+    if (!ref.current) return;
+    gsap.to(ref.current, {
+      rotateX: 0,
+      rotateY: 0,
+      duration: 0.6,
+      ease: 'power2.out',
+    });
+  };
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      className={className}
+      style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ── Magnetic Element ───────────────────────────────────── */
+function MagneticElement({ children, strength = 0.3 }: { children: React.ReactNode; strength?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMove = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = e.clientX - (rect.left + rect.width / 2);
+    const y = e.clientY - (rect.top + rect.height / 2);
+    gsap.to(ref.current, {
+      x: x * strength,
+      y: y * strength,
+      duration: 0.3,
+      ease: 'power2.out',
+    });
+  };
+
+  const handleLeave = () => {
+    if (!ref.current) return;
+    gsap.to(ref.current, {
+      x: 0,
+      y: 0,
+      duration: 0.5,
+      ease: 'elastic.out(1, 0.3)',
+    });
+  };
+
+  return (
+    <div ref={ref} onMouseMove={handleMove} onMouseLeave={handleLeave} style={{ display: 'inline-block', willChange: 'transform' }}>
+      {children}
+    </div>
+  );
+}
+
 export default function Services() {
   const sectionRef = useRef<HTMLElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Title reveal
-      gsap.fromTo('.services-title',
-        { opacity: 0, y: 80, rotateX: 30 },
-        {
-          opacity: 1, y: 0, rotateX: 0, duration: 1.2, ease: 'power4.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 75%',
-            toggleActions: 'play none none none',
-          }
-        }
-      );
-
-      // Cards staggered reveal with 3D flip
-      const cards = gsap.utils.toArray<HTMLElement>('.service-card');
-      cards.forEach((card, i) => {
-        gsap.fromTo(card,
-          { opacity: 0, y: 100, rotateY: -15, scale: 0.9 },
-          {
-            opacity: 1, y: 0, rotateY: 0, scale: 1, duration: 1,
-            ease: 'power3.out',
-            delay: i * 0.12,
-            scrollTrigger: {
-              trigger: card,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
-            }
-          }
-        );
-      });
-
-      // Horizontal parallax on the row
-      gsap.to(cardsRef.current, {
-        x: -200,
+      // Parallax on background
+      gsap.to('.services-glow', {
+        y: -100,
         ease: 'none',
         scrollTrigger: {
           trigger: sectionRef.current,
           start: 'top bottom',
           end: 'bottom top',
-          scrub: 1.5,
-        }
+          scrub: 1,
+        },
       });
     }, sectionRef);
-
     return () => ctx.revert();
   }, []);
 
@@ -62,20 +114,21 @@ export default function Services() {
     <section
       id="services"
       ref={sectionRef}
-      className="relative py-32 overflow-hidden"
+      data-reel-section
+      className="relative h-screen w-full flex items-center overflow-hidden"
       style={{ background: '#030309' }}
     >
-      {/* Section background glow */}
+      {/* Background glow */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full pointer-events-none"
+        className="services-glow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full pointer-events-none"
         style={{
           background: 'radial-gradient(circle, rgba(41,171,226,0.06) 0%, transparent 70%)',
         }}
       />
 
-      <div className="shell relative z-10">
+      <div className="shell relative z-10 w-full">
         {/* Section Header */}
-        <div className="services-title text-center mb-20" style={{ perspective: '1000px' }}>
+        <div data-reel-text className="text-center mb-16 opacity-0">
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="w-16 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, #29abe2)' }} />
             <span className="text-sm font-medium tracking-[0.3em] uppercase" style={{ color: '#29abe2', fontFamily: 'Space Grotesk' }}>
@@ -92,97 +145,86 @@ export default function Services() {
           >
             حلول تقنية متكاملة
           </h2>
-          <p className="mt-6 max-w-2xl mx-auto" style={{ color: '#9aa5bc', fontSize: '1.1rem', lineHeight: 1.8 }}>
-            نقدم مجموعة واسعة من الخدمات التقنية المتقدمة، من تطوير الويب إلى الذكاء الاصطناعي
+          <p className="mt-4 max-w-2xl mx-auto" style={{ color: '#9aa5bc', fontSize: '1.1rem' }}>
+            نقدم مجموعة واسعة من الخدمات التقنية المتقدمة
           </p>
         </div>
 
         {/* Services Grid */}
-        <div
-          ref={cardsRef}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          style={{ transformStyle: 'preserve-3d' }}
-        >
-          {SERVICES.map((service, i) => (
-            <div
-              key={service.id}
-              className="service-card group relative p-8 rounded-3xl transition-all duration-700 hover:scale-[1.02]"
-              style={{
-                background: 'linear-gradient(135deg, rgba(13,17,34,0.8), rgba(6,6,13,0.9))',
-                border: '1px solid rgba(148,178,255,0.1)',
-                transformStyle: 'preserve-3d',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-              }}
-            >
-              {/* Glow on hover */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-h-[60vh] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+          {SERVICES.map((service) => (
+            <TiltCard key={service.id} className="group">
               <div
-                className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+                data-reel-visual
+                className="relative p-6 rounded-2xl h-full opacity-0"
                 style={{
-                  background: `radial-gradient(400px circle at 50% 0%, ${service.accent}15, transparent 60%)`,
-                }}
-              />
-
-              {/* Number */}
-              <span
-                className="absolute top-6 right-6 font-black text-6xl opacity-10"
-                style={{ color: service.accent, fontFamily: 'Space Grotesk' }}
-              >
-                {service.index}
-              </span>
-
-              {/* Icon */}
-              <div
-                className="relative w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
-                style={{
-                  background: `linear-gradient(135deg, ${service.accent}20, transparent)`,
-                  border: `1px solid ${service.accent}30`,
+                  background: 'linear-gradient(135deg, rgba(13,17,34,0.8), rgba(6,6,13,0.9))',
+                  border: '1px solid rgba(148,178,255,0.1)',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                 }}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={service.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={service.icon} />
-                </svg>
-              </div>
+                {/* Glow on hover */}
+                <div
+                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+                  style={{
+                    background: `radial-gradient(400px circle at 50% 0%, ${service.accent}15, transparent 60%)`,
+                  }}
+                />
 
-              {/* Title */}
-              <h3 className="text-xl font-black mb-2" style={{ color: '#eef3fb' }}>
-                {service.title}
-              </h3>
-              <span className="text-sm font-medium mb-4 block" style={{ color: service.accent, fontFamily: 'Space Grotesk' }}>
-                {service.latin}
-              </span>
+                {/* Number */}
+                <span
+                  className="absolute top-4 right-4 font-black text-5xl opacity-10"
+                  style={{ color: service.accent, fontFamily: 'Space Grotesk' }}
+                >
+                  {service.index}
+                </span>
 
-              {/* Description */}
-              <p className="text-sm mb-6 leading-relaxed" style={{ color: '#9aa5bc' }}>
-                {service.desc}
-              </p>
-
-              {/* Features */}
-              <ul className="space-y-2 mb-6">
-                {service.features.slice(0, 3).map((feat, j) => (
-                  <li key={j} className="flex items-center gap-2 text-sm" style={{ color: '#cdd7ea' }}>
-                    <span style={{ color: service.accent }}>◆</span>
-                    {feat}
-                  </li>
-                ))}
-              </ul>
-
-              {/* Tech stack */}
-              <div className="flex flex-wrap gap-2">
-                {service.tech.map((t, j) => (
-                  <span
-                    key={j}
-                    className="px-3 py-1 rounded-full text-xs font-bold"
+                {/* Icon */}
+                <MagneticElement strength={0.2}>
+                  <div
+                    className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-4"
                     style={{
-                      background: `${service.accent}15`,
-                      color: service.accent,
-                      border: `1px solid ${service.accent}25`,
+                      background: `linear-gradient(135deg, ${service.accent}20, transparent)`,
+                      border: `1px solid ${service.accent}30`,
                     }}
                   >
-                    {t}
-                  </span>
-                ))}
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={service.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d={service.icon} />
+                    </svg>
+                  </div>
+                </MagneticElement>
+
+                {/* Title */}
+                <h3 className="text-lg font-black mb-1" style={{ color: '#eef3fb' }}>
+                  {service.title}
+                </h3>
+                <span className="text-xs font-medium mb-3 block" style={{ color: service.accent, fontFamily: 'Space Grotesk' }}>
+                  {service.latin}
+                </span>
+
+                {/* Description */}
+                <p className="text-sm mb-4 leading-relaxed" style={{ color: '#9aa5bc' }}>
+                  {service.desc.slice(0, 80)}...
+                </p>
+
+                {/* Tech stack */}
+                <div className="flex flex-wrap gap-1.5">
+                  {service.tech.map((t, j) => (
+                    <span
+                      key={j}
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{
+                        background: `${service.accent}15`,
+                        color: service.accent,
+                        border: `1px solid ${service.accent}25`,
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            </TiltCard>
           ))}
         </div>
       </div>

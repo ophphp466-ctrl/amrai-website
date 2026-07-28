@@ -1,371 +1,341 @@
-import { useEffect, useRef, useState, useMemo, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, Stars, Text3D, Center, MeshDistortMaterial, Environment } from '@react-three/drei';
-import * as THREE from 'three';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { COMPANY } from '../lib/data';
 
 /* ═══════════════════════════════════════════════════════════
-   HERO — Cinematic 3D Space Scene with floating text,
-   particles, and scroll-driven camera movement
+   HERO — Film Reel Section 1
+   WebGL Noise Shader Background + Split Text Animation
    ═══════════════════════════════════════════════════════════ */
 
-/* ── 3D Floating Particles Ring ─────────────────────────── */
-function ParticleRing({ count = 2000, radius = 8 }: { count?: number; radius?: number }) {
-  const meshRef = useRef<THREE.Points>(null);
-  const particles = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = radius * (0.5 + Math.random() * 1.5);
-      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      pos[i * 3 + 2] = r * Math.cos(phi);
-      // Cyan to violet gradient
-      const t = Math.random();
-      colors[i * 3] = 0.17 + t * 0.3;     // R
-      colors[i * 3 + 1] = 0.67 + t * 0.2; // G
-      colors[i * 3 + 2] = 0.9 + t * 0.1;  // B
+/* ── WebGL Noise Shader ─────────────────────────────────── */
+const VERT = `
+  attribute vec2 a_pos;
+  void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FRAG = `
+  precision mediump float;
+  uniform float u_time;
+  uniform vec2 u_res;
+  uniform vec2 u_mouse;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 5; i++) {
+      v += a * noise(p);
+      p *= 2.0;
+      a *= 0.5;
     }
-    return { pos, colors };
-  }, [count, radius]);
+    return v;
+  }
 
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.y = state.clock.elapsedTime * 0.02;
-    meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.01) * 0.1;
-  });
+  void main() {
+    vec2 uv = gl_FragCoord.xy / u_res;
+    vec2 p = uv * 3.0;
+    
+    // Mouse influence
+    vec2 mouse = u_mouse / u_res;
+    float mouseDist = length(uv - mouse);
+    
+    // Animated noise
+    float t = u_time * 0.15;
+    float n1 = fbm(p + t);
+    float n2 = fbm(p * 1.5 - t * 0.7 + 10.0);
+    float n3 = fbm(p * 0.5 + t * 0.3 + 20.0);
+    
+    // Colors
+    vec3 c1 = vec3(0.012, 0.012, 0.035);  // Deep space
+    vec3 c2 = vec3(0.04, 0.06, 0.13);     // Dark blue
+    vec3 c3 = vec3(0.16, 0.67, 0.89);     // Cyan
+    vec3 c4 = vec3(0.48, 0.42, 1.0);      // Violet
+    
+    // Mix colors based on noise
+    vec3 col = mix(c1, c2, n1);
+    col = mix(col, c3, n2 * 0.15 * (1.0 - mouseDist));
+    col = mix(col, c4, n3 * 0.08 * smoothstep(0.5, 0.0, mouseDist));
+    
+    // Add subtle glow near center
+    float centerDist = length(uv - 0.5);
+    col += c3 * smoothstep(0.5, 0.0, centerDist) * 0.03;
+    
+    // Vignette
+    col *= 1.0 - smoothstep(0.3, 1.0, centerDist) * 0.5;
+    
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
 
-  return (
-    <points ref={meshRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          array={particles.pos}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          count={count}
-          array={particles.colors}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.03}
-        vertexColors
-        transparent
-        opacity={0.8}
-        sizeAttenuation
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
+function initShader(canvas: HTMLCanvasElement) {
+  const gl = canvas.getContext('webgl', { alpha: false, antialias: false })!;
+  if (!gl) return null;
+
+  // Compile shaders
+  function compile(type: number, src: string) {
+    const s = gl.createShader(type)!;
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+
+  const prog = gl.createProgram()!;
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+
+  // Fullscreen quad
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  // Uniforms
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_res');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  let mouseX = 0, mouseY = 0;
+  const onMove = (e: MouseEvent) => {
+    mouseX = e.clientX;
+    mouseY = canvas.height - e.clientY;
+  };
+  window.addEventListener('mousemove', onMove, { passive: true });
+
+  let raf = 0;
+  let startTime = performance.now();
+  let running = true;
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio, 1.5);
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function render() {
+    if (!running) return;
+    const t = (performance.now() - startTime) / 1000;
+    gl.uniform1f(uTime, t);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform2f(uMouse, mouseX * (canvas.width / canvas.clientWidth), mouseY * (canvas.height / canvas.clientHeight));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    raf = requestAnimationFrame(render);
+  }
+  raf = requestAnimationFrame(render);
+
+  return {
+    destroy() {
+      running = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('resize', resize);
+    }
+  };
 }
 
-/* ── Floating 3D Text ───────────────────────────────────── */
-function FloatingTitle({ text, position, size = 1, color = '#5fd4ff' }: {
-  text: string;
-  position: [number, number, number];
-  size?: number;
-  color?: string;
-}) {
-  return (
-    <Float speed={2} rotationIntensity={0.3} floatIntensity={0.5}>
-      <Center position={position}>
-        <Text3D
-          font="/fonts/Inter_Bold.json"
-          size={size}
-          height={0.15}
-          curveSegments={12}
-          bevelEnabled
-          bevelThickness={0.02}
-          bevelSize={0.01}
-          bevelSegments={5}
-        >
-          {text}
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.3}
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Text3D>
-      </Center>
-    </Float>
-  );
-}
+/* ── Split Text Animation ───────────────────────────────── */
+function SplitText({ text, className = '', delay = 0 }: { text: string; className?: string; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
 
-/* ── Distorted Sphere (Core) ────────────────────────────── */
-function CoreSphere() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.y = state.clock.elapsedTime * 0.1;
-    meshRef.current.rotation.z = state.clock.elapsedTime * 0.05;
-  });
-  return (
-    <mesh ref={meshRef} scale={1.5}>
-      <icosahedronGeometry args={[1, 8]} />
-      <MeshDistortMaterial
-        color="#0a5f8f"
-        emissive="#29abe2"
-        emissiveIntensity={0.2}
-        distort={0.4}
-        speed={2}
-        roughness={0.1}
-        metalness={0.9}
-      />
-    </mesh>
-  );
-}
-
-/* ── Glowing Orbs ───────────────────────────────────────── */
-function OrbitingOrbs() {
-  const groupRef = useRef<THREE.Group>(null);
-  const orbs = useMemo(() => [
-    { radius: 3, speed: 0.5, color: '#29abe2', size: 0.15 },
-    { radius: 4, speed: 0.3, color: '#7b6cff', size: 0.12 },
-    { radius: 5, speed: 0.2, color: '#5fd4ff', size: 0.1 },
-    { radius: 3.5, speed: 0.4, color: '#ffd166', size: 0.08 },
-  ], []);
-
-  useFrame((state) => {
-    if (!groupRef.current) return;
-    groupRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-  });
+  useEffect(() => {
+    if (!ref.current) return;
+    const chars = ref.current.querySelectorAll('.split-char');
+    gsap.fromTo(chars,
+      { y: 120, opacity: 0, rotateX: -80 },
+      {
+        y: 0, opacity: 1, rotateX: 0,
+        duration: 0.8,
+        stagger: 0.03,
+        ease: 'power4.out',
+        delay,
+      }
+    );
+  }, [delay]);
 
   return (
-    <group ref={groupRef}>
-      {orbs.map((orb, i) => (
-        <mesh
+    <div ref={ref} className={className} style={{ perspective: '800px' }}>
+      {text.split('').map((char, i) => (
+        <span
           key={i}
-          position={[
-            Math.cos(orb.speed * 0 + i * 1.5) * orb.radius,
-            Math.sin(i) * 0.5,
-            Math.sin(orb.speed * 0 + i * 1.5) * orb.radius,
-          ]}
+          className="split-char inline-block"
+          style={{ transformStyle: 'preserve-3d', whiteSpace: char === ' ' ? 'pre' : undefined }}
         >
-          <sphereGeometry args={[orb.size, 16, 16]} />
-          <meshStandardMaterial
-            color={orb.color}
-            emissive={orb.color}
-            emissiveIntensity={2}
-            transparent
-            opacity={0.9}
-          />
-          <pointLight color={orb.color} intensity={1} distance={3} />
-        </mesh>
+          {char}
+        </span>
       ))}
-    </group>
+    </div>
   );
 }
 
-/* ── Camera Controller — scroll-driven ──────────────────── */
-function CameraRig({ scrollY }: { scrollY: number }) {
-  const { camera } = useThree();
-  useFrame(() => {
-    // Camera pulls back and tilts as user scrolls
-    const progress = Math.min(scrollY / window.innerHeight, 1);
-    camera.position.z = 8 + progress * 4;
-    camera.position.y = -progress * 2;
-    camera.rotation.x = progress * 0.1;
-  });
-  return null;
+/* ── Magnetic Button ────────────────────────────────────── */
+function MagneticButton({ children, href, primary = false }: { children: React.ReactNode; href: string; primary?: boolean }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+
+  const handleMove = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = e.clientX - (rect.left + rect.width / 2);
+    const y = e.clientY - (rect.top + rect.height / 2);
+    gsap.to(ref.current, { x: x * 0.3, y: y * 0.3, duration: 0.3, ease: 'power2.out' });
+  };
+
+  const handleLeave = () => {
+    if (!ref.current) return;
+    gsap.to(ref.current, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.3)' });
+  };
+
+  return (
+    <a
+      ref={ref}
+      href={href}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      className="relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full font-bold text-lg overflow-hidden transition-shadow duration-500"
+      style={{
+        background: primary
+          ? 'linear-gradient(135deg, #29abe2, #1b7fd4)'
+          : 'rgba(149,190,255,0.04)',
+        color: primary ? '#02121e' : '#eef3fb',
+        border: primary ? 'none' : '1px solid rgba(148,178,255,0.2)',
+        backdropFilter: primary ? 'none' : 'blur(12px)',
+        boxShadow: primary ? '0 8px 30px rgba(41,171,226,0.35)' : 'none',
+        willChange: 'transform',
+      }}
+    >
+      <span className="relative z-10">{children}</span>
+    </a>
+  );
 }
 
 /* ── Main Hero Component ────────────────────────────────── */
-export default function Hero({ onReady }: { onReady: () => void }) {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const [scrollY, setScrollY] = useState(0);
-  const [loaded, setLoaded] = useState(false);
+export default function Hero() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
-  // Track scroll for camera
   useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    if (!canvasRef.current) return;
+    const shader = initShader(canvasRef.current);
+    return () => shader?.destroy();
   }, []);
-
-  // Entrance animation
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoaded(true);
-      onReady();
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [onReady]);
-
-  // Text reveal animation
-  useEffect(() => {
-    if (!loaded) return;
-    const ctx = gsap.context(() => {
-      gsap.fromTo('.hero-title-line',
-        { y: 100, opacity: 0, rotateX: 45 },
-        { y: 0, opacity: 1, rotateX: 0, duration: 1.2, stagger: 0.15, ease: 'power4.out', delay: 0.3 }
-      );
-      gsap.fromTo('.hero-subtitle',
-        { y: 40, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 0.8 }
-      );
-      gsap.fromTo('.hero-cta',
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', delay: 1.2 }
-      );
-    }, sectionRef);
-    return () => ctx.revert();
-  }, [loaded]);
 
   return (
     <section
       ref={sectionRef}
-      className="relative"
-      style={{ height: '200vh' }}
+      data-reel-section
+      className="relative h-screen w-full overflow-hidden"
     >
-      {/* Sticky 3D Canvas */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
-        {/* Three.js Background */}
-        <div className="absolute inset-0 z-0">
-          <Canvas
-            camera={{ position: [0, 0, 8], fov: 50 }}
-            dpr={[1, 1.5]}
-            gl={{ antialias: true, alpha: true }}
-          >
-            <Suspense fallback={null}>
-              <CameraRig scrollY={scrollY} />
-              <ambientLight intensity={0.2} />
-              <pointLight position={[10, 10, 10]} intensity={0.5} color="#5fd4ff" />
-              <pointLight position={[-10, -10, -5]} intensity={0.3} color="#7b6cff" />
+      {/* WebGL Background */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+        style={{ zIndex: 1 }}
+      />
 
-              <ParticleRing count={3000} radius={10} />
-              <CoreSphere />
-              <OrbitingOrbs />
-              <Stars radius={50} depth={50} count={3000} factor={3} saturation={0.5} fade speed={0.5} />
+      {/* Vignette overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          zIndex: 2,
+          background: 'radial-gradient(ellipse at center, transparent 30%, rgba(3,3,9,0.7) 100%)',
+        }}
+      />
 
-              <Environment preset="night" />
-              <fog attach="fog" args={['#030309', 10, 25]} />
-            </Suspense>
-          </Canvas>
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-4">
+        {/* Badge */}
+        <div data-reel-text className="flex items-center gap-4 mb-8 opacity-0">
+          <div className="w-12 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, #29abe2)' }} />
+          <span className="text-sm font-medium tracking-[0.3em] uppercase" style={{ color: '#29abe2', fontFamily: 'Space Grotesk' }}>
+            {COMPANY.name}
+          </span>
+          <div className="w-12 h-[1px]" style={{ background: 'linear-gradient(90deg, #29abe2, transparent)' }} />
         </div>
 
-        {/* Overlay Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center h-full px-4" style={{ perspective: '1000px' }}>
-          {/* Company badge */}
-          <div className="hero-subtitle mb-6 flex items-center gap-3 opacity-0">
-            <div className="w-12 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, #29abe2)' }} />
-            <span className="text-sm font-medium tracking-[0.3em] uppercase" style={{ color: '#29abe2', fontFamily: 'Space Grotesk' }}>
-              {COMPANY.name}
-            </span>
-            <div className="w-12 h-[1px]" style={{ background: 'linear-gradient(90deg, #29abe2, transparent)' }} />
-          </div>
-
-          {/* Main Title */}
-          <h1 className="text-center" style={{ transformStyle: 'preserve-3d' }}>
-            <div className="hero-title-line opacity-0 overflow-hidden">
-              <span
-                className="block font-black leading-none"
-                style={{
-                  fontSize: 'clamp(2.5rem, 5vw + 1rem, 7rem)',
-                  color: '#eef3fb',
-                  textShadow: '0 0 60px rgba(41,171,226,0.3), 0 0 120px rgba(41,171,226,0.1)',
-                }}
-              >
-                نحوّل الأفكار
-              </span>
-            </div>
-            <div className="hero-title-line opacity-0 overflow-hidden">
-              <span
-                className="block font-black leading-none"
-                style={{
-                  fontSize: 'clamp(2.5rem, 5vw + 1rem, 7rem)',
-                  background: 'linear-gradient(120deg, #fff 20%, #5fd4ff 55%, #7b6cff 90%)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  color: 'transparent',
-                }}
-              >
-                إلى واقعٍ رقميٍ ذكي
-              </span>
-            </div>
-          </h1>
-
-          {/* Subtitle */}
-          <p
-            className="hero-subtitle opacity-0 mt-8 text-center max-w-xl"
-            style={{
-              fontSize: 'clamp(1rem, 1vw + 0.5rem, 1.3rem)',
-              color: '#9aa5bc',
-              lineHeight: 1.8,
-            }}
-          >
-            أكثر من 500 مشروع ناجح · 98% رضا عملاء · 12+ سنة خبرة
-            <br />
-            في الذكاء الاصطناعي وتطوير الويب والأتمتة الذكية
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="hero-cta opacity-0 mt-10 flex flex-wrap gap-4 justify-center">
-            <a
-              href="#services"
-              className="group relative px-8 py-4 rounded-full font-bold text-lg overflow-hidden transition-all duration-500 hover:scale-105"
-              style={{
-                background: 'linear-gradient(135deg, #29abe2, #1b7fd4)',
-                color: '#02121e',
-                boxShadow: '0 8px 30px rgba(41,171,226,0.35)',
-              }}
-            >
-              <span className="relative z-10">اكتشف خدماتنا</span>
-              <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{ background: 'linear-gradient(135deg, #7ee0ff, #29abe2)' }}
-              />
-            </a>
-            <a
-              href="#contact"
-              className="group px-8 py-4 rounded-full font-bold text-lg border transition-all duration-500 hover:scale-105"
-              style={{
-                borderColor: 'rgba(149,190,255,0.3)',
-                color: '#eef3fb',
-                background: 'rgba(149,190,255,0.04)',
-                backdropFilter: 'blur(12px)',
-              }}
-            >
-              تواصل معنا
-            </a>
-          </div>
-
-          {/* Scroll indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60">
-            <span className="text-xs tracking-widest uppercase" style={{ color: '#5b6579', fontFamily: 'Space Grotesk' }}>
-              Scroll
-            </span>
-            <div className="w-[1px] h-12 relative overflow-hidden">
-              <div
-                className="absolute top-0 left-0 w-full h-full"
-                style={{
-                  background: 'linear-gradient(180deg, #29abe2, transparent)',
-                  animation: 'scrollPulse 2s ease-in-out infinite',
-                }}
-              />
-            </div>
-          </div>
+        {/* Main Title — Split Text */}
+        <div data-reel-visual className="text-center opacity-0">
+          <SplitText
+            text="نحوّل الأفكار"
+            className="block font-black leading-none"
+            delay={0.5}
+          />
+          <SplitText
+            text="إلى واقعٍ رقميٍ ذكي"
+            className="block font-black leading-none mt-2"
+            delay={0.8}
+          />
+          <style>{`
+            .split-char {
+              font-size: clamp(2.5rem, 5vw + 1rem, 7rem);
+              background: linear-gradient(120deg, #fff 20%, #5fd4ff 55%, #7b6cff 90%);
+              -webkit-background-clip: text;
+              background-clip: text;
+              color: transparent;
+            }
+          `}</style>
         </div>
 
-        {/* Vignette overlay */}
-        <div
-          className="absolute inset-0 z-[5] pointer-events-none"
+        {/* Subtitle */}
+        <p
+          data-reel-text
+          className="mt-8 text-center max-w-xl opacity-0"
           style={{
-            background: 'radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(3,3,9,0.6) 100%)',
+            fontSize: 'clamp(1rem, 1vw + 0.5rem, 1.3rem)',
+            color: '#9aa5bc',
+            lineHeight: 1.8,
           }}
-        />
+        >
+          أكثر من 500 مشروع ناجح · 98% رضا عملاء · 12+ سنة خبرة
+          <br />
+          في الذكاء الاصطناعي وتطوير الويب والأتمتة الذكية
+        </p>
+
+        {/* CTA Buttons */}
+        <div data-reel-visual className="mt-10 flex flex-wrap gap-4 justify-center opacity-0">
+          <MagneticButton href="#services" primary>
+            اكتشف خدماتنا
+          </MagneticButton>
+          <MagneticButton href="#contact">
+            تواصل معنا
+          </MagneticButton>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50">
+          <span className="text-xs tracking-widest uppercase" style={{ color: '#5b6579', fontFamily: 'Space Grotesk' }}>
+            Scroll
+          </span>
+          <div className="w-[1px] h-12 relative overflow-hidden">
+            <div
+              className="absolute top-0 left-0 w-full h-full"
+              style={{
+                background: 'linear-gradient(180deg, #29abe2, transparent)',
+                animation: 'scrollPulse 2s ease-in-out infinite',
+              }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Scroll-triggered spacer */}
       <style>{`
         @keyframes scrollPulse {
           0%, 100% { transform: translateY(-100%); }

@@ -1,121 +1,62 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { CASES } from '../lib/data';
 
 gsap.registerPlugin(ScrollTrigger);
 
-/* ── Before/After Reveal Slider ─────────────────────────── */
-function BeforeAfterSlider({ accent }: { accent: string }) {
-  const [sliderPos, setSliderPos] = useState(50);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-
-  const handleMove = (clientX: number) => {
-    if (!wrapRef.current) return;
-    const rect = wrapRef.current.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 100;
-    setSliderPos(Math.max(0, Math.min(100, x)));
-  };
-
-  return (
-    <div
-      ref={wrapRef}
-      className="relative w-full aspect-video rounded-2xl overflow-hidden cursor-ew-resize"
-      style={{ touchAction: 'none' }}
-      onMouseMove={(e) => isDragging.current && handleMove(e.clientX)}
-      onMouseUp={() => (isDragging.current = false)}
-      onMouseLeave={() => (isDragging.current = false)}
-      onMouseDown={(e) => { isDragging.current = true; handleMove(e.clientX); }}
-      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-      onTouchStart={(e) => handleMove(e.touches[0].clientX)}
-    >
-      {/* "After" (improved) side */}
-      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}15, #0a0a16)` }}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: `${accent}20`, border: `1px solid ${accent}40` }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
-            </div>
-            <span className="text-lg font-bold" style={{ color: accent }}>بعد التحسين</span>
-          </div>
-        </div>
-      </div>
-
-      {/* "Before" side with clip */}
-      <div
-        className="absolute inset-0"
-        style={{
-          clipPath: `inset(0 ${100 - sliderPos}% 0 0)`,
-          background: 'linear-gradient(135deg, #1a1a2e, #0a0a16)',
-        }}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.3)' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff6464" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </div>
-            <span className="text-lg font-bold" style={{ color: '#ff6464' }}>قبل التحسين</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Slider handle */}
-      <div
-        className="absolute top-0 bottom-0 w-[2px]"
-        style={{
-          left: `${sliderPos}%`,
-          background: accent,
-          boxShadow: `0 0 20px ${accent}80`,
-          transform: 'translateX(-50%)',
-        }}
-      >
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center"
-          style={{
-            background: accent,
-            boxShadow: `0 0 20px ${accent}80`,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#02121e" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ═══════════════════════════════════════════════════════════
+   CASES — Film Reel Section 3
+   Horizontal Scroll Gallery with 3D Perspective
+   ═══════════════════════════════════════════════════════════ */
 
 export default function Cases() {
   const sectionRef = useRef<HTMLElement>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Title reveal
-      gsap.fromTo('.cases-header',
-        { opacity: 0, y: 60 },
-        {
-          opacity: 1, y: 0, duration: 1, ease: 'power3.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 75%',
-            toggleActions: 'play none none none',
-          }
-        }
-      );
+      if (!galleryRef.current) return;
+      const items = galleryRef.current.querySelectorAll<HTMLElement>('.gallery-item');
 
-      // Case cards stagger
-      gsap.utils.toArray<HTMLElement>('.case-card').forEach((card, i) => {
-        gsap.fromTo(card,
-          { opacity: 0, x: i % 2 === 0 ? -80 : 80, scale: 0.95 },
-          {
-            opacity: 1, x: 0, scale: 1, duration: 1.2,
-            ease: 'power3.out',
-            scrollTrigger: {
-              trigger: card,
-              start: 'top 80%',
-              toggleActions: 'play none none none',
+      // Horizontal scroll
+      gsap.to(items, {
+        xPercent: -100 * (items.length - 1),
+        ease: 'none',
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: 'top top',
+          end: () => `+=${items.length * window.innerWidth * 0.6}`,
+          pin: true,
+          scrub: 1,
+          anticipatePin: 1,
+          snap: {
+            snapTo: 1 / (items.length - 1),
+            duration: { min: 0.2, max: 0.4 },
+            ease: 'power2.inOut',
+          },
+        },
+      });
+
+      // Individual item parallax
+      items.forEach((item) => {
+        const img = item.querySelector('.case-image');
+        if (img) {
+          gsap.fromTo(img,
+            { scale: 1.2 },
+            {
+              scale: 1,
+              ease: 'none',
+              scrollTrigger: {
+                trigger: item,
+                containerAnimation: gsap.getById?.('horizontal') as any,
+                start: 'left right',
+                end: 'right left',
+                scrub: true,
+              },
             }
-          }
-        );
+          );
+        }
       });
     }, sectionRef);
 
@@ -126,10 +67,11 @@ export default function Cases() {
     <section
       id="work"
       ref={sectionRef}
-      className="relative py-32"
+      data-reel-section
+      className="relative h-screen w-full overflow-hidden"
       style={{ background: '#030309' }}
     >
-      {/* Background gradient */}
+      {/* Background */}
       <div
         className="absolute top-0 left-0 w-full h-[500px] pointer-events-none"
         style={{
@@ -137,88 +79,131 @@ export default function Cases() {
         }}
       />
 
-      <div className="shell relative z-10">
+      <div className="relative z-10 h-full flex flex-col justify-center">
         {/* Header */}
-        <div className="cases-header text-center mb-20">
-          <div className="flex items-center justify-center gap-4 mb-6">
+        <div data-reel-text className="shell mb-8 opacity-0">
+          <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, #7b6cff)' }} />
             <span className="text-sm font-medium tracking-[0.3em] uppercase" style={{ color: '#7b6cff', fontFamily: 'Space Grotesk' }}>
               Case Studies
             </span>
-            <div className="w-16 h-[1px]" style={{ background: 'linear-gradient(90deg, #7b6cff, transparent)' }} />
           </div>
           <h2
             className="font-black leading-tight"
             style={{
-              fontSize: 'clamp(2rem, 3vw + 1rem, 4.5rem)',
+              fontSize: 'clamp(2rem, 3vw + 1rem, 4rem)',
               color: '#eef3fb',
             }}
           >
             قصص نجاح حقيقية
           </h2>
-          <p className="mt-6 max-w-2xl mx-auto" style={{ color: '#9aa5bc', fontSize: '1.1rem', lineHeight: 1.8 }}>
-            نتائج ملموسة حققناها لعملائنا في مختلف المجالات
-          </p>
         </div>
 
-        {/* Cases */}
-        <div className="space-y-20">
+        {/* Horizontal Gallery */}
+        <div
+          ref={galleryRef}
+          className="flex gap-8 pl-[5vw]"
+          style={{
+            width: `${CASES.length * 60 + 20}vw`,
+            perspective: '1200px',
+          }}
+        >
           {CASES.map((c, i) => (
             <div
               key={c.id}
-              className={`case-card grid grid-cols-1 lg:grid-cols-2 gap-10 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
+              data-reel-visual
+              className="gallery-item flex-shrink-0 w-[55vw] max-w-[700px] h-[60vh] rounded-3xl overflow-hidden relative group opacity-0"
+              style={{
+                background: 'linear-gradient(135deg, rgba(13,17,34,0.9), rgba(6,6,13,0.95))',
+                border: '1px solid rgba(148,178,255,0.1)',
+                boxShadow: '0 30px 80px rgba(0,0,0,0.4)',
+                transformStyle: 'preserve-3d',
+              }}
             >
-              {/* Content */}
-              <div className={i % 2 === 1 ? 'lg:order-2' : ''}>
-                <span
-                  className="inline-block px-4 py-1 rounded-full text-xs font-bold mb-4"
+              {/* Case image placeholder */}
+              <div className="case-image absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute inset-0"
                   style={{
-                    background: `${c.accent}15`,
-                    color: c.accent,
-                    border: `1px solid ${c.accent}30`,
+                    background: `linear-gradient(135deg, ${c.accent}10, #0a0a16)`,
                   }}
-                >
-                  {c.field}
-                </span>
-                <h3
-                  className="font-black mb-4"
-                  style={{ fontSize: 'clamp(1.5rem, 2vw + 0.5rem, 2.5rem)', color: '#eef3fb' }}
-                >
-                  {c.title}
-                </h3>
-                <p className="mb-8 leading-relaxed" style={{ color: '#9aa5bc', fontSize: '1.05rem' }}>
-                  {c.desc}
-                </p>
+                />
+                {/* Decorative pattern */}
+                <div
+                  className="absolute inset-0 opacity-30"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 2px 2px, ${c.accent}40 1px, transparent 0)`,
+                    backgroundSize: '24px 24px',
+                  }}
+                />
+              </div>
 
-                {/* Metrics */}
-                <div className="grid grid-cols-3 gap-4">
-                  {c.metrics.map((m, j) => (
-                    <div
-                      key={j}
-                      className="p-4 rounded-2xl text-center"
-                      style={{
-                        background: 'rgba(13,17,34,0.6)',
-                        border: '1px solid rgba(148,178,255,0.08)',
-                      }}
-                    >
+              {/* Content overlay */}
+              <div className="absolute inset-0 flex flex-col justify-end p-8">
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(180deg, transparent 30%, rgba(3,3,9,0.9) 100%)',
+                  }}
+                />
+
+                <div className="relative z-10">
+                  <span
+                    className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3"
+                    style={{
+                      background: `${c.accent}15`,
+                      color: c.accent,
+                      border: `1px solid ${c.accent}30`,
+                    }}
+                  >
+                    {c.field}
+                  </span>
+                  <h3
+                    className="font-black mb-3"
+                    style={{ fontSize: 'clamp(1.3rem, 2vw + 0.5rem, 2rem)', color: '#eef3fb' }}
+                  >
+                    {c.title}
+                  </h3>
+                  <p className="mb-5 text-sm leading-relaxed" style={{ color: '#9aa5bc' }}>
+                    {c.desc}
+                  </p>
+
+                  {/* Metrics */}
+                  <div className="flex gap-4">
+                    {c.metrics.map((m, j) => (
                       <div
-                        className="text-2xl font-black mb-1"
-                        style={{ color: c.accent, fontFamily: 'Space Grotesk' }}
+                        key={j}
+                        className="px-4 py-2 rounded-xl"
+                        style={{
+                          background: 'rgba(13,17,34,0.6)',
+                          border: '1px solid rgba(148,178,255,0.08)',
+                        }}
                       >
-                        {m.value}
+                        <div className="text-lg font-black" style={{ color: c.accent, fontFamily: 'Space Grotesk' }}>
+                          {m.value}
+                        </div>
+                        <div className="text-[10px]" style={{ color: '#5b6579' }}>{m.label}</div>
                       </div>
-                      <div className="text-xs" style={{ color: '#5b6579' }}>{m.label}</div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Visual */}
-              <div className={i % 2 === 1 ? 'lg:order-1' : ''}>
-                <BeforeAfterSlider accent={c.accent} />
-              </div>
+              {/* Hover border glow */}
+              <div
+                className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+                style={{
+                  boxShadow: `inset 0 0 0 1px ${c.accent}40, 0 0 40px ${c.accent}15`,
+                }}
+              />
             </div>
           ))}
+        </div>
+
+        {/* Scroll hint */}
+        <div data-reel-text className="shell mt-6 flex items-center gap-3 opacity-0">
+          <div className="w-8 h-[1px]" style={{ background: 'linear-gradient(90deg, #7b6cff, transparent)' }} />
+          <span className="text-xs" style={{ color: '#5b6579' }}>اسحب للتنقل بين القصص</span>
         </div>
       </div>
     </section>
